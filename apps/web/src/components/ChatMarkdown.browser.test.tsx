@@ -236,20 +236,21 @@ it("shows unavailable audio when a workspace embed has no thread", async () => {
   expect(screen.container.querySelector("audio")).toBeNull();
 });
 
-it("loads a host image through the page's own route when there is no environment", async () => {
+it.each([
+  ["</work/my shot.png>", "/work/my shot.png"],
+  ["E:/Demo Projects/game/title-844x390.png", "E:/Demo Projects/game/title-844x390.png"],
+])("loads a host image through the page's own route: %s", async (destination, path) => {
   setup();
   const pixel =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
   const hostImageUrl = vi.fn((_path: string) => pixel);
   await using screen = await render(
     <HostImageUrlContext value={hostImageUrl}>
-      <ChatMarkdown cwd={undefined} text="![Shot](</work/my shot.png>)" />
+      <ChatMarkdown cwd={undefined} text={`![Shot](${destination})`} />
     </HostImageUrlContext>,
   );
   await expect.element(screen.getByAltText("Shot")).toHaveAttribute("src", pixel);
-  expect(new Set(hostImageUrl.mock.calls.map(([path]) => path))).toEqual(
-    new Set(["/work/my shot.png"]),
-  );
+  expect(new Set(hostImageUrl.mock.calls.map(([filePath]) => filePath))).toEqual(new Set([path]));
 });
 
 it("loads the <picture> source for the current theme through the image route", async () => {

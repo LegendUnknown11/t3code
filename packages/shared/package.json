@@ -551,6 +551,10 @@
       "types": "./src/markdownWindowsPaths.ts",
       "import": "./src/markdownWindowsPaths.ts"
     },
+    "./markdownSpacedMediaPaths": {
+      "types": "./src/markdownSpacedMediaPaths.ts",
+      "import": "./src/markdownSpacedMediaPaths.ts"
+    },
     "./generatedImageMarkdown": {
       "types": "./src/generatedImageMarkdown.ts",
       "import": "./src/generatedImageMarkdown.ts"

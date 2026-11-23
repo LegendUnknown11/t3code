@@ -372,9 +372,11 @@ describe("Windows paths in native Markdown", () => {
   // regression: #23722 Markdown escapes ate the separator before `.t3` and `_build`
   it("keeps backslashes in Windows image and link destinations", async () => {
     const image = String.raw`C:\work\.t3\_build\shot.png`;
+    const spaced = String.raw`C:\Demo Projects\.t3\shot.png`;
     const link = String.raw`\\server\share\.t3\notes.md`;
     const markdown = [
       `![shot](${image} "Shot")`,
+      `![spaced](${spaced})`,
       String.raw`![paren](C:\a\)b.png)`,
       `[notes](<${link}>)`,
       `<img src="${image}">`,
@@ -395,8 +397,8 @@ describe("Windows paths in native Markdown", () => {
     const paren = String.raw`C:\a\)b.png`;
     const amp = String.raw`C:\R&D\.t3\a&b.png`;
     const htmlAmp = String.raw`C:\R&D\.t3\b.png`;
-    expect(urls).toEqual([image, paren, link, image, amp, htmlAmp, image]);
-    expect(markdownImageSources(markdown)).toEqual([image, paren, amp, htmlAmp]);
+    expect(urls).toEqual([image, spaced, paren, link, image, amp, htmlAmp, image]);
+    expect(markdownImageSources(markdown)).toEqual([image, spaced, paren, amp, htmlAmp]);
   });
 });
 

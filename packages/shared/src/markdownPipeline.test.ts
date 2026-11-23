@@ -6,6 +6,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import type { Link, Root, RootContent } from "mdast";
 import {
+  chatMarkdownImageSources,
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS,
@@ -13,6 +14,26 @@ import {
   remarkAssistantInsights,
   remarkEnableOrderedListNumbers,
 } from "./markdownPipeline.ts";
+
+it("finds bare local media embeds with spaces and keeps code literal", () => {
+  const forward = "E:/Demo Projects/game/title-844x390.png";
+  const backward = String.raw`E:\Demo Projects\.t3\preview.png`;
+  const posix = "/work/Demo Project (copy)/cover photo.webp";
+  const markdown = [
+    `![Title card](${forward})`,
+    `![Preview](${backward})`,
+    `![Cover](${posix})`,
+    `\`![Inline code](${forward})\``,
+    "```md",
+    `![Fence](${forward})`,
+    "```",
+    `\\![Escaped](${forward})`,
+    "![External](https://example.com/a b.png)",
+    "![Partial](E:/Demo Projects/game/shot.png",
+  ].join("\n");
+
+  expect(chatMarkdownImageSources(markdown).map(decodeURI)).toEqual([forward, backward, posix]);
+});
 
 it.each([
   ["default", CHAT_MARKDOWN_REMARK_PLUGINS],

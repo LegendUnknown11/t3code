@@ -204,6 +204,21 @@ describe("wordsHast", () => {
     expect(slices).toEqual(["[a](u)", "- [ ] task", "```sh\nls\n```", "-      [b](./b.ts)"]);
   });
 
+  it("renders an unquoted Windows media path at its authored source position", () => {
+    const path = "E:/Demo Projects/game/title-844x390.png";
+    const embed = `![Title card](${path})`;
+    const markdown = `Après ${embed} [next](https://example.com)`;
+    const paragraph = wordsHast(markdown, ASSISTANT).children[0];
+    if (paragraph?.type !== "element") throw new Error("Expected a paragraph");
+    const slices = paragraph.children.flatMap((child) =>
+      child.type === "element" && child.position
+        ? [markdown.slice(child.position.start.offset, child.position.end.offset)]
+        : [],
+    );
+    expect(slices).toEqual([embed, "[next](https://example.com)"]);
+    expect(wordsHtml(markdown)).toBe(wordsHtml(markdown.replace(path, `<${path}>`)));
+  });
+
   it("renders insight blocks as remarkAssistantInsights did", () => {
     const markdown =
       "Intro\n\n`★ Insight ─────────────────────────────────────`\n- one\n- two\n`─────────────────────────────────────────────────`\n\nAfter\n\n```\n★ Insight ─────\n```";
