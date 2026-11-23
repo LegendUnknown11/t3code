@@ -62,13 +62,13 @@ export function errorDisplayMessage(
 }
 
 /**
- * A thrown `Error`'s text in the active language, its plain `message` (even empty) when it has no
- * marked text, and null for anything that is not an `Error`.
+ * A thrown `Error`'s localized text or plain message, or the text of a non-blank string defect.
  */
 export function thrownErrorMessage(
   error: unknown,
   resolve: MFunctionType = mFallback,
 ): string | null {
+  if (typeof error === "string") return error.trim().length > 0 ? error : null;
   if (!(error instanceof Error)) return null;
   const text = errorI18nMessage(error);
   return text === undefined ? error.message : resolveMarkedText(text, resolve);
