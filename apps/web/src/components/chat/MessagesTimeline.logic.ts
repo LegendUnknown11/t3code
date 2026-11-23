@@ -702,6 +702,11 @@ function workGroupId(timelineEntryId: string): string {
   return `work-group:${timelineEntryId}`;
 }
 
+function mcpSignInNotice(entry: WorkLogEntry) {
+  const item = entry.structuredPayload;
+  return item?.type === "system_notice" && item.providerThreadId !== null ? item : undefined;
+}
+
 function expandedWorkGroupRow(
   groupId: string,
   createdAt: string,
@@ -2059,6 +2064,64 @@ export function deriveMessagesTimelineRows(
     }
 
     if (timelineEntry.kind === "work") {
+      const signInNotice = mcpSignInNotice(timelineEntry.entry);
+      if (signInNotice?.mcpSignIn) {
+        const byServer = new Map([[signInNotice.mcpSignIn.server, timelineEntry.entry]]);
+        let cursor = index + 1;
+        for (; cursor < timelineEntries.length; cursor += 1) {
+          const next = timelineEntries[cursor];
+          if (
+            next?.kind !== "work" ||
+            next.attempt?.id !== timelineEntry.attempt?.id ||
+            cursor === activeTurnHeaderIndex ||
+            next.id === activeWorkPlacementEntryId
+          )
+            break;
+          const notice = mcpSignInNotice(next.entry);
+          if (
+            !notice?.mcpSignIn ||
+            notice.providerThreadId !== signInNotice.providerThreadId ||
+            notice.threadId !== signInNotice.threadId ||
+            notice.runId !== signInNotice.runId
+          )
+            break;
+          byServer.set(notice.mcpSignIn.server, next.entry);
+        }
+        if (cursor > index + 1) {
+          const groupedEntries = [...byServer.values()];
+          const groupId = workGroupId(timelineEntry.id);
+          const expanded = input.expandedWorkGroupIds?.has(groupId) ?? false;
+          if (groupedEntries.length === 1) {
+            nextRows.push({
+              kind: "work",
+              id: timelineEntry.id,
+              createdAt: timelineEntry.createdAt,
+              groupedEntries,
+              isExpandedToolGroup: false,
+            });
+          } else {
+            nextRows.push({
+              kind: "work-toggle",
+              id: `work-toggle:${timelineEntry.id}`,
+              createdAt: timelineEntry.createdAt,
+              runId: signInNotice.runId,
+              groupId,
+              hiddenCount: groupedEntries.length,
+              expanded,
+              summary: resolve(msg("MCP sign-in required for {count} servers"), {
+                count: groupedEntries.length,
+              }),
+              summaryKind: "mixed",
+              hasFailure: false,
+            });
+            if (expanded) {
+              nextRows.push(expandedWorkGroupRow(groupId, timelineEntry.createdAt, groupedEntries));
+            }
+          }
+          index = cursor - 1;
+          continue;
+        }
+      }
       if (
         isPendingApproval(timelineEntry.entry) ||
         (timelineEntry.entry.runId != null && itemizedRunIds.has(timelineEntry.entry.runId)) ||

@@ -4,6 +4,7 @@ import {
   NodeId,
   ProviderDriverKind,
   ProviderInstanceId,
+  ProviderThreadId,
   ProviderTurnId,
   RunAttemptId,
   TurnItemId,
@@ -517,6 +518,67 @@ describe("deriveMessagesTimelineRows", () => {
       expect(row).toMatchObject({ kind: "work", groupedEntries: [notice.entry] });
     },
   );
+
+  it("groups adjacent MCP sign-in notices and retains the latest action per server", () => {
+    const fixture = makeStreamingTimelineFixture();
+    const visibleTurnItems = ["linear", "figma", "linear", null, "github"].map(
+      (server, ordinal): OrchestrationV2ProjectedTurnItem => {
+        const id = TurnItemId.make(`notice-${ordinal}`);
+        const at = DateTime.makeUnsafe(fixture.time(ordinal));
+        return {
+          ...fixture.visibleTurnItems[0]!,
+          sourceItemId: id,
+          item: {
+            id,
+            threadId: fixture.threadId,
+            runId: fixture.runId,
+            nodeId: null,
+            providerThreadId: ProviderThreadId.make("mcp-provider-thread"),
+            providerTurnId: null,
+            nativeItemRef: null,
+            parentItemId: null,
+            ordinal,
+            startedAt: at,
+            completedAt: at,
+            updatedAt: at,
+            type: "system_notice",
+            message: server ?? "Unrelated warning",
+            title: server ?? "Unrelated warning",
+            status: "completed",
+            ...(server === null ? {} : { mcpSignIn: { server } }),
+          },
+        };
+      },
+    );
+    const input = {
+      timelineEntries: deriveTimelineEntriesFromVisibleTurnItems({
+        visibleTurnItems,
+        optimisticMessages: [],
+      }),
+      isWorking: false,
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    };
+    const collapsed = deriveMessagesTimelineRows(input);
+    expect(collapsed).toMatchObject([
+      { kind: "work-toggle", summary: "MCP sign-in required for 2 servers", expanded: false },
+      { kind: "work", groupedEntries: [{ label: "Unrelated warning" }] },
+      { kind: "work", groupedEntries: [{ label: "github" }] },
+    ]);
+    const toggle = collapsed[0];
+    if (toggle?.kind !== "work-toggle") throw new Error("Expected sign-in group");
+    const expanded = deriveMessagesTimelineRows({
+      ...input,
+      expandedWorkGroupIds: new Set([toggle.groupId]),
+    });
+    expect(expanded[1]).toMatchObject({
+      kind: "work",
+      groupedEntries: [
+        { projectedItem: { sourceItemId: "notice-2" } },
+        { projectedItem: { sourceItemId: "notice-1" } },
+      ],
+    });
+  });
 
   it.each(["info", "warning", "error", undefined] as const)(
     "renders %s notices with compatible severity",

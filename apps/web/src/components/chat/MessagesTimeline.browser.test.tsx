@@ -230,6 +230,33 @@ const TASK_ID = ScheduledTaskId.make("task-1");
 const AUTOMATION_PROMPT = "Triage the inbox\n\nLabel every new issue and close duplicates.";
 
 describe("MessagesTimeline work rows", () => {
+  it("expands one MCP sign-in row to show each server notice", async () => {
+    setup();
+    const visibleTurnItems = ["Linear", "Figma", "GitHub"].map((server, ordinal) =>
+      v2Item("system_notice", {
+        id: `mcp-sign-in-${ordinal}`,
+        ordinal,
+        providerThreadId: "mcp-provider-thread",
+        updatedAt: DateTime.makeUnsafe(CREATED_AT),
+        message: `${server} needs a sign-in`,
+        mcpSignIn: { server },
+      }),
+    );
+    await using screen = await renderTimeline(
+      deriveTimelineEntriesFromVisibleTurnItems({ visibleTurnItems, optimisticMessages: [] }),
+    );
+    const group = screen.getByRole("button", { name: /MCP sign-in required for 3 servers/ });
+    await expect.element(group).toHaveAttribute("aria-expanded", "false");
+    expect(screen.text()).not.toContain("Linear needs a sign-in");
+    await group.click();
+    await expect.element(group).toHaveAttribute("aria-expanded", "true");
+    for (const server of ["Linear", "Figma", "GitHub"]) {
+      await expect
+        .element(screen.getByText(`${server} needs a sign-in`, { exact: true }))
+        .toBeVisible();
+    }
+  });
+
   it("keeps a tall HTML preview in place when its last accordion opens at the bottom", async () => {
     const props = baseProps();
     const html = injectHtmlRenderBootstrap(`<div style="height:1400px">Earlier preview content</div>
