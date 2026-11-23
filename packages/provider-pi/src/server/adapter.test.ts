@@ -30,6 +30,7 @@ import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
+import * as Path from "effect/Path";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
@@ -3138,10 +3139,11 @@ describe("PiAdapterV2", () => {
   it.effect("recovers a historical Pi fork recorded before turns stored the session file", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
       const dir = yield* fs.makeTempDirectoryScoped();
-      const oldFile = `${dir}/original.jsonl`;
-      const unrelatedFile = `${dir}/unrelated.jsonl`;
-      const currentFile = `${dir}/current.jsonl`;
+      const oldFile = path.join(dir, "original.jsonl");
+      const unrelatedFile = path.join(dir, "unrelated.jsonl");
+      const currentFile = path.join(dir, "current.jsonl");
       const header = { type: "session", version: 3 };
       const writeSession = (file: string, entries: ReadonlyArray<unknown>) =>
         fs.writeFileString(
@@ -3163,7 +3165,7 @@ describe("PiAdapterV2", () => {
         modelSelection: modelSelection("default"),
         runtimePolicy,
       });
-      const forkFile = `${dir}/forked.jsonl`;
+      const forkFile = path.join(dir, "forked.jsonl");
       forkFake.failNextFork();
       forkFake.queueState({ sessionFile: forkFile });
       fake.queueState({ sessionFile: forkFile });
