@@ -4124,6 +4124,47 @@ describe("PiAdapterV2", () => {
       }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
+  it.effect("marks complete Pi answers but leaves tool preambles unmarked in the same turn", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakePi;
+      const { runtime, takeEvent } = yield* openRuntime(fake);
+      const providerThread = yield* runtime.ensureThread({
+        threadId: THREAD_ID,
+        modelSelection: modelSelection("default"),
+        runtimePolicy,
+      });
+      yield* startTurn(runtime, providerThread);
+      yield* fake.takeRequest("prompt");
+      yield* fake.emit({ type: "response", command: "prompt", success: true });
+      yield* fake.emit({ type: "agent_start" });
+      for (const [text, stopReason] of [
+        ["Let me check", "toolUse"],
+        ["Original answer", "stop"],
+        ["Answer to the steer", "stop"],
+      ]) {
+        yield* fake.emit({ type: "message_start", message: { role: "assistant" } });
+        yield* fake.emit({
+          type: "message_update",
+          assistantMessageEvent: { type: "text_end", contentIndex: 0, content: text },
+        });
+        yield* fake.emit({ type: "message_end", message: { role: "assistant", stopReason } });
+      }
+      yield* fake.emit({ type: "agent_settled" });
+      const answers: string[] = [];
+      yield* takeEvent((event) => {
+        if (
+          event.type === "turn_item.updated" &&
+          event.turnItem.type === "assistant_message" &&
+          event.turnItem.phase === "final_answer"
+        ) {
+          answers.push(event.turnItem.text);
+        }
+        return event.type === "turn.terminal";
+      });
+      assert.deepEqual(answers, ["Original answer", "Answer to the steer"]);
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
   it.effect("records the model Pi reports on the completed provider turn", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakePi;

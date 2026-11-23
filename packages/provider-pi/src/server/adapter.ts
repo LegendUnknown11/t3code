@@ -1224,18 +1224,21 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
           turn: ActivePiTurn,
           item: PiStreamItemState,
           streaming: boolean,
+          phase?: "final_answer",
         ) {
           item.published = true;
           const emittedAt = yield* DateTime.now;
           const base = baseItemFields(turn, item.nativeItemId, item.startedAt, emittedAt);
-          yield* emitItemNode(
-            turn,
-            item.nativeItemId,
-            item.kind,
-            streaming ? "running" : "completed",
-            item.startedAt,
-            streaming ? null : emittedAt,
-          );
+          if (phase === undefined) {
+            yield* emitItemNode(
+              turn,
+              item.nativeItemId,
+              item.kind,
+              streaming ? "running" : "completed",
+              item.startedAt,
+              streaming ? null : emittedAt,
+            );
+          }
           if (item.kind === "assistant_message") {
             const messageId = idAllocator.derive.messageFromProviderItem({
               driver: PI_PROVIDER,
@@ -1250,11 +1253,13 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
                 title: null,
                 completedAt: streaming ? null : emittedAt,
                 type: "assistant_message",
+                ...(phase === undefined ? {} : { phase }),
                 messageId,
                 text: item.text,
                 streaming,
               },
             });
+            if (phase !== undefined) return;
             yield* emit({
               type: "message.updated",
               driver: PI_PROVIDER,
@@ -1309,8 +1314,10 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
           );
         });
 
+      const streamItemPrefix = (turn: ActivePiTurn) =>
+        `${turn.providerTurn.id}:m${turn.messageOrdinal}:c`;
       const streamItemId = (turn: ActivePiTurn, contentIndex: number) =>
-        `${turn.providerTurn.id}:m${turn.messageOrdinal}:c${contentIndex}`;
+        `${streamItemPrefix(turn)}${contentIndex}`;
 
       const streamItemFor = Effect.fnUntraced(function* (
         turn: ActivePiTurn,
@@ -2387,12 +2394,25 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             const message = event["message"];
             if (recordString(message, "role") !== "assistant") return;
             yield* completeOpenStreamItems(turn);
+            const stopReason = recordString(message, "stopReason");
+            if (stopReason === "stop") {
+              const prefix = streamItemPrefix(turn);
+              for (const item of turn.streamItems.values()) {
+                if (
+                  item.kind === "assistant_message" &&
+                  item.text.length > 0 &&
+                  item.nativeItemId.startsWith(prefix)
+                ) {
+                  yield* emitStreamItem(turn, item, false, "final_answer");
+                }
+              }
+            }
             const reportedProvider = recordString(message, "provider");
             const reportedModelId = recordString(message, "model");
             if (reportedProvider && reportedModelId) {
               turn.reportedModel = `${reportedProvider}/${reportedModelId}`;
             }
-            if (recordString(message, "stopReason") === "error" && turn.failure === null) {
+            if (stopReason === "error" && turn.failure === null) {
               turn.failure = makeProviderFailure({
                 message: recordString(message, "errorMessage") ?? "Pi reported a model error.",
                 class: "provider_error",
