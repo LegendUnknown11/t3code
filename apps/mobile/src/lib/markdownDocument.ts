@@ -3,7 +3,7 @@ import { unified, type Processor } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import { remarkKeepWindowsProsePaths } from "@t3tools/shared/markdownWindowsPaths";
-import { wrapSpacedMediaPaths } from "@t3tools/shared/markdownSpacedMediaPaths";
+import { wrapSpacedMarkdownPaths } from "@t3tools/shared/markdownSpacedMediaPaths";
 import {
   absoluteFilePathMatches,
   inlineCodeFilePathCandidate,
@@ -502,7 +502,9 @@ function markdownWithWindowsPathDestinations(markdown: string): string {
 // HTML wrappers can expose Markdown that wasn't in the first AST, so normalize them first.
 export function markdownForNativeParsing(markdown: string): string {
   const withHtml = markdownWithHtml(markdown);
-  return markdownWithWindowsPathDestinations(wrapSpacedMediaPaths(withHtml)?.markdown ?? withHtml);
+  return markdownWithWindowsPathDestinations(
+    wrapSpacedMarkdownPaths(withHtml)?.markdown ?? withHtml,
+  );
 }
 
 export function parseMarkdownDocument(markdown: string): Root {

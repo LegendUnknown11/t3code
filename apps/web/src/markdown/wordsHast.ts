@@ -14,7 +14,7 @@ import { expandGithubEmojiAliases } from "@t3tools/client-runtime/pull-request-m
 import { resolveChangeRequestMediaUrl } from "@t3tools/client-runtime/pull-request-references";
 import { GITHUB_ALERT_MARKER } from "@t3tools/shared/markdownGithubAlerts";
 import { absoluteFilePathMatches } from "@t3tools/shared/markdownLinks";
-import { wrapSpacedMediaPaths } from "@t3tools/shared/markdownSpacedMediaPaths";
+import { wrapSpacedMarkdownPaths } from "@t3tools/shared/markdownSpacedMediaPaths";
 import {
   rehypeNormalizeLocalEditorLinks,
   rehypePreserveImageSourceMeta,
@@ -241,7 +241,7 @@ const positionKey = (node: Element) =>
  * HTML escaped, and a range claimed more often than that is trusted for none of its claimants.
  */
 function parse(markdown: string, options: RenderOptions): Root {
-  const repaired = wrapSpacedMediaPaths(markdown);
+  const repaired = wrapSpacedMarkdownPaths(markdown);
   const source = repaired?.markdown ?? markdown;
   const offsetOf = utf16Offsets(source);
   const render = (escapeHtml?: true) =>

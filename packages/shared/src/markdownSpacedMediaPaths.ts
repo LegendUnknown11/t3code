@@ -4,9 +4,9 @@ import remarkParse from "remark-parse";
 import { unified, type Plugin } from "unified";
 import { mediaKindFromPath } from "./mediaPreview.ts";
 
-const MEDIA_EMBED =
-  /!\[(?:\\[^\r\n]|[^[\]\\\r\n])*\]\(((?:\/(?![/\\])|[A-Za-z]:[/\\])(?:\\[^\r\n]|[^\\<>[\]`\r\n()]|\([^\\<>[\]`\r\n()]*\))+)\)/g;
-const mediaPathParser = unified().use(remarkParse).use(remarkGfm);
+const MARKDOWN_PATH =
+  /(!?)\[(?:\\[^\r\n]|[^[\]\\\r\n])*\]\(((?:\/(?![/\\])|[A-Za-z]:[/\\])(?:\\[^\r\n]|[^\\<>[\]`\r\n()]|\([^\\<>[\]`\r\n()]*\))+)\)/g;
+const markdownPathParser = unified().use(remarkParse).use(remarkGfm);
 
 function isEscaped(source: string, offset: number): boolean {
   let start = offset;
@@ -14,11 +14,13 @@ function isEscaped(source: string, offset: number): boolean {
   return (offset - start) % 2 !== 0;
 }
 
-function* spacedMediaPaths(source: string) {
+function* spacedMarkdownPaths(source: string) {
   if (!/\]\((?:\/|[A-Za-z]:[/\\])/.test(source)) return;
-  for (const match of source.matchAll(MEDIA_EMBED)) {
-    const path = match[1]!;
-    if (!/[ \t]/.test(path) || !mediaKindFromPath(path) || isEscaped(source, match.index)) {
+  for (const match of source.matchAll(MARKDOWN_PATH)) {
+    const path = match[2]!;
+    const supported =
+      match[1] === "!" ? mediaKindFromPath(path) !== null : /^[A-Za-z]:[/\\]/.test(path);
+    if (!/[ \t]/.test(path) || !supported || isEscaped(source, match.index)) {
       continue;
     }
     const end = match.index + match[0].length - 1;
@@ -26,11 +28,11 @@ function* spacedMediaPaths(source: string) {
   }
 }
 
-export function wrapSpacedMediaPaths(
+export function wrapSpacedMarkdownPaths(
   source: string,
-  readTree = () => mediaPathParser.parse(source),
+  readTree = () => markdownPathParser.parse(source),
 ) {
-  const candidates = [...spacedMediaPaths(source)];
+  const candidates = [...spacedMarkdownPaths(source)];
   if (candidates.length === 0) return undefined;
 
   const textRanges: Array<[number, number]> = [];
@@ -49,7 +51,7 @@ export function wrapSpacedMediaPaths(
   const insertions: number[] = [];
   let writtenTo = 0;
   for (const { opener, start, end } of candidates) {
-    // Only repair embeds the parser left as text: skip valid images, and code or HTML anywhere inside.
+    // Only repair syntax left as text, excluding code and HTML.
     if (
       opener < writtenTo ||
       !textRanges.some(([from, to]) => opener >= from && opener < to) ||
@@ -80,13 +82,13 @@ function countInsertionsBefore(insertions: number[], offset: number): number {
   return low;
 }
 
-/** Reparse only when a bare local media path needs brackets, keeping authored source positions. */
-export const remarkSpacedMediaPaths: Plugin<[], Root> = function () {
+/** Reparse only when a local path needs brackets, keeping authored source positions. */
+export const remarkSpacedMarkdownPaths: Plugin<[], Root> = function () {
   const parse = this.parser;
   if (!parse) return;
   this.parser = (source, file) => {
     const tree = parse(source, file) as Root;
-    const repaired = wrapSpacedMediaPaths(source, () => tree);
+    const repaired = wrapSpacedMarkdownPaths(source, () => tree);
     if (!repaired) return tree;
     const { markdown, toOriginal } = repaired;
     const parsed = parse(markdown, file) as Root;

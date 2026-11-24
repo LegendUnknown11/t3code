@@ -1,4 +1,5 @@
 import type { mediaKindFromPath } from "./mediaPreview.ts";
+import { wrapSpacedMarkdownPaths } from "./markdownSpacedMediaPaths.ts";
 import {
   isNetworkPath,
   isWindowsAbsolutePath,
@@ -527,7 +528,8 @@ function markdownLinkDestinationScanner(markdown: string) {
 
 // Labels may nest balanced brackets (`[the [docs] guide](...)`), and the composer escapes them
 // (`[\[id\].tsx](...)`), so `\[` and `\]` never count. A blank line ends the paragraph and its labels.
-export function extractMarkdownLinkHrefs(markdown: string): string[] {
+export function extractMarkdownLinkHrefs(source: string): string[] {
+  const markdown = wrapSpacedMarkdownPaths(source)?.markdown ?? source;
   const hrefs: string[] = [];
   const scanDestination = markdownLinkDestinationScanner(markdown);
   const bracket = /[[\]\\]|\n[ \t\r]*\n/g;

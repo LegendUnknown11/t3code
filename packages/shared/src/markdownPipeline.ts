@@ -9,7 +9,7 @@ import type {
   Text,
 } from "mdast";
 import { remarkKeepWindowsPaths } from "./markdownWindowsPaths.ts";
-import { remarkSpacedMediaPaths } from "./markdownSpacedMediaPaths.ts";
+import { remarkSpacedMarkdownPaths } from "./markdownSpacedMediaPaths.ts";
 import { type PluggableList, type Processor, type Transformer, unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
@@ -102,7 +102,7 @@ export const CHAT_MARKDOWN_REMARK_PLUGINS: PluggableList = [
   remarkKeepAutolinkSuffixes,
   remarkLinkAbsoluteFilePaths,
   remarkKeepWindowsPaths,
-  remarkSpacedMediaPaths,
+  remarkSpacedMarkdownPaths,
   remarkGithubAlerts,
   remarkKeepOrderedListNumbers,
   remarkNormalizeListItemIndentation,
@@ -120,7 +120,7 @@ export const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS: PluggableList = [
   remarkKeepLeadingWhitespace,
   remarkLinkAbsoluteFilePaths,
   remarkKeepWindowsPaths,
-  remarkSpacedMediaPaths,
+  remarkSpacedMarkdownPaths,
   remarkGithubAlerts,
   remarkKeepOrderedListNumbers,
   remarkNormalizeListItemIndentation,

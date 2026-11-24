@@ -1170,6 +1170,31 @@ describe("ChatMarkdown Windows file links", () => {
       chip.getAttribute("href"),
     );
 
+  it("renders unquoted Windows file paths with spaces as file links", async () => {
+    setup();
+    const threadRef = { environmentId, threadId: ThreadId.make("windows-links") };
+    filesystemMetadata.mockResolvedValue(AsyncResult.success({ entries: [{ kind: "file" }] }));
+    using openFile = vi.spyOn(useRightPanelStore.getState(), "openFile");
+    const text = String.raw`The design doc ([GDD.md](E:\AI\Demo Games\balloon-survival\GDD.md), section 3). The sound list is in [catalog.json](E:\AI\Demo Games\balloon-survival\assets\audio\catalog.json).`;
+    for (const parseRawHtml of [true, false]) {
+      await using screen = await renderText(text, {
+        cwd: "E:/AI/Demo Games/balloon-survival",
+        threadRef,
+        lineBreaks: !parseRawHtml,
+        parseRawHtml,
+      });
+      expect(fileHrefs(screen.container)).toEqual([
+        "E:/AI/Demo Games/balloon-survival/GDD.md",
+        "E:/AI/Demo Games/balloon-survival/assets/audio/catalog.json",
+      ]);
+      expect(screen.container.textContent).toContain(", section 3)");
+      await act(async () =>
+        screen.container.querySelector<HTMLElement>(".chat-markdown-file-link")!.click(),
+      );
+    }
+    expect(openFile).toHaveBeenCalledWith(threadRef, "GDD.md", undefined);
+  });
+
   it("still rejects unsafe schemes", async () => {
     setup();
     for (const parseRawHtml of [true, false]) {
